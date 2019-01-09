@@ -11,6 +11,16 @@ use brezgalov\filters\Filter;
 class IndexAction extends \yii\rest\IndexAction
 {
     /**
+     * @var bool if FALSE - pagination is disabled while page or per-page not found in request
+     */
+    public $pagAlwaysActive = false;
+
+    /**
+     * @var int default pagination page size
+     */
+    public $defaultPageSize = 100;
+
+    /**
      * filter
      * @var null|Filter
      */
@@ -34,10 +44,18 @@ class IndexAction extends \yii\rest\IndexAction
      */
     protected function prepareDataProvider()
     {
+        $queryParams = \Yii::$app->request->getQueryParams();
         $provider = parent::prepareDataProvider();
+        //manage pagination
+        if (!$this->pagAlwaysActive && !array_key_exists('per-page', $queryParams) && !array_key_exists('page', $queryParams)) {
+            $provider->pagination = false;
+        } else {
+            $provider->pagination->defaultPageSize = $this->defaultPageSize;
+        }
+        //apply filters
         $this->filter->putFilter(
             $provider->query,
-            \Yii::$app->request->getQueryParams()
+            $queryParams
         );
         return $provider;
     }
