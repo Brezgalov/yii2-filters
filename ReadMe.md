@@ -1,4 +1,4 @@
-#Подключение
+# Подключение
 Наследуем IndexAction от **brezgalov\filters\actions\IndexAction**
 Теперь query-параметры (кроме conditions, 'expand', 'per-page', 'page') будут использоваться в кач-ве фильтров. Например:
 ```php
@@ -6,7 +6,7 @@ users?id=1 - ищем пользователя с id = 1
 users?id[]=23&id[]=42&conditions[id]="in" - ищем пользователя с id 23 или 42
 ```
 
-#Кастомные фильтры
+# Кастомные фильтры
 Создаем модель фильтра
 ```php
 class InnFilter extends BaseObject implements IFilterHandler
@@ -41,5 +41,5 @@ class IndexAction extends \brezgalov\filters\actions\IndexAction
     }
 }
 ```
-И пользуемся фильтром:
+# Использование:
 `/drivers?filter=inn&inn=12345678&phone=79091234555`
