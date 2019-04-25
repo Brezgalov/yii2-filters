@@ -1,62 +1,132 @@
 <?php
 
-namespace Brezgalov\Filters\Actions;
+namespace Brezgalov\Filters;
 
-use Brezgalov\Filters\Filter;
+use yii\base\Model;
+use yii\db\ActiveRecord;
 
-/**
- * Базовый экшон. Поддерживает фильтры
- * @package potok\modules\v1\controllers\actions\base
- */
-class IndexAction extends \yii\rest\IndexAction
+class Filter
 {
     /**
-     * @var bool if FALSE - pagination is disabled while page or per-page not found in request
+     * @var string
      */
-    public $pagAlwaysActive = false;
+    protected $modelName;
 
     /**
-     * @var int default pagination page size
+     * Массив пользовательских фильтров
+     * @var array
      */
-    public $defaultPageSize = 100;
+    protected $handlers = [];
 
     /**
-     * filter
-     * @var null|Filter
+     * Список полей по которым можно фильтровать
+     * @var array
      */
-    protected $filter = null;
+    protected $allowedFields = [];
 
     /**
-     * IndexAction constructor.
-     * @param $id
-     * @param \yii\base\Controller $controller
-     * @param array $config
+     * Массив полей по которым запрещена фильтрация
+     * @var array
      */
-    public function __construct($id, \yii\base\Controller $controller, array $config = [])
+    protected $forbiddenFields = [
+        'fields' => true,
+        'conditions' => true,
+        'expand' => true,
+        'per-page' => true,
+        'page' => true,
+    ];
+
+    /**
+     * Disable fields filter white list check
+     * @var bool
+     */
+    public $disableWhiteListFields = false;
+
+    /**
+     * Добавляем хэндлер в список
+     * Пример предопределения фильтров
+     * $filter->addHandler('1', [$this, 'func1']->addHandler('2', [$this, 'func2']);
+     *
+     * @param string $key
+     * @param callable $handler
+     * @return $this
+     */
+    public function addHandler($key, IFilterHandler $filter)
     {
-        $this->filter = new Filter();
-        parent::__construct($id, $controller, $config);
+        $this->handlers[$key] = $filter;
+        return $this;
     }
 
     /**
-     * Подключаем фильтры перед отдачей
-     * @return \yii\data\ActiveDataProvider
+     * @param string $model
      */
-    protected function prepareDataProvider()
+    public function setModelName($modelName)
     {
-        $queryParams = \Yii::$app->request->getQueryParams();
-        $provider = parent::prepareDataProvider();
-        //manage pagination
-        if (!$this->pagAlwaysActive && !array_key_exists('per-page', $queryParams) && !array_key_exists('page', $queryParams)) {
-            $provider->pagination = false;
-        } else {
-            $provider->pagination->defaultPageSize = $this->defaultPageSize;
+        $this->modelName = $modelName;
+    }
+
+    /**
+     * Добавляем список полей запрещенных к фильтрации
+     * @param array $fields
+     * @return $this
+     */
+    public function addForbiddenFields(array $fields)
+    {
+        foreach ($fields as $field) {
+            $this->forbiddenFields[$field] = true;
         }
-        //apply filters
-        $this->filter->putFilter(
-            $provider->query,
-            $queryParams
-        );
-        return $provider;
+        return $this;
+    }
+
+    /**
+     * Добавление полей в белый список для фильтра по полям
+     * @param array $fields
+     * @return $this
+     */
+    public function addAllowedFields(array $fields)
+    {
+        foreach ($fields as $field) {
+            $this->allowedFields[$field] = true;
+        }
+        return $this;
+    }
+
+    /**
+     * Проверяет является ли элемент фильтра инвалидным
+     * @param $field
+     * @return bool
+     */
+    public function isInvalidField($field)
+    {
+        $forbidden = array_key_exists($field, $this->forbiddenFields);
+        $allowed = array_key_exists($field, $this->allowedFields);
+        return $forbidden || !$allowed;
+    }
+
+    /**
+     * Применяем хендлер фильтра к запросу
+     * @param \yii\db\QueryInterface $query
+     * @param array $params
+     */
+    public function putFilter(\yii\db\QueryInterface $query, array $params)
+    {
+        if (array_key_exists('filter', $params)) {
+            if (!is_string($params['filter'])) {
+                return;
+            }
+            $filters = explode(',', $params['filter']);
+            foreach ($filters as $filter) {
+                $this->handlers[$filter]->apply($query);
+            }
+        } else {
+            foreach ($params as $key => $val) {
+                if ($this->isInvalidField($key)){
+                    continue;
+                }
+                $key = (!empty($this->modelName))? $this->modelName . '.' . $key : $key;
+                $condition = (@$params['conditions'][$key])?: '=';
+                $query->andWhere([$condition, $key, $val]);
+            }
+        }
     }
 }
