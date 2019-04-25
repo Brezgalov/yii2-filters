@@ -1,6 +1,6 @@
 <?php
 
-namespace brezgalov\filters;
+namespace Brezgalov\Filters;
 
 use yii\base\Model;
 use yii\db\ActiveRecord;
@@ -29,6 +29,7 @@ class Filter
      * @var array
      */
     protected $forbiddenFields = [
+        'fields' => true,
         'conditions' => true,
         'expand' => true,
         'per-page' => true,
