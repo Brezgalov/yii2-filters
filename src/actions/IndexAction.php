@@ -1,6 +1,6 @@
 <?php
 
-namespace brezgalov\filters\actions;
+namespace Brezgalov\Filters\Actions;
 
 use brezgalov\filters\Filter;
 
