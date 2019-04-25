@@ -37,6 +37,12 @@ class Filter
     ];
 
     /**
+     * Disable fields filter white list check
+     * @var bool
+     */
+    public $disableWhiteListFields = false;
+
+    /**
      * Добавляем хэндлер в список
      * Пример предопределения фильтров
      * $filter->addHandler('1', [$this, 'func1']->addHandler('2', [$this, 'func2']);
@@ -72,6 +78,11 @@ class Filter
         return $this;
     }
 
+    /**
+     * Добавление полей в белый список для фильтра по полям
+     * @param array $fields
+     * @return $this
+     */
     public function addAllowedFields(array $fields)
     {
         foreach ($fields as $field) {
@@ -82,14 +93,14 @@ class Filter
 
     /**
      * Проверяет является ли элемент фильтра инвалидным
-     * @param $elem
+     * @param $field
      * @return bool
      */
-    protected function isInvalidElement($elem)
+    public function isInvalidField($field)
     {
-        $forbidden = array_key_exists($elem, $this->forbiddenFields);
-//        $allowed = array_key_exists($elem, $this->allowedFields); // некоректная проверка, поле может не быть в белом списке пока
-        return $forbidden;
+        $forbidden = array_key_exists($field, $this->forbiddenFields);
+        $allowed = array_key_exists($field, $this->allowedFields);
+        return $forbidden || !$allowed;
     }
 
     /**
@@ -109,7 +120,7 @@ class Filter
             }
         } else {
             foreach ($params as $key => $val) {
-                if ($this->isInvalidElement($key)){
+                if ($this->isInvalidField($key)){
                     continue;
                 }
                 $key = (!empty($this->modelName))? $this->modelName . '.' . $key : $key;

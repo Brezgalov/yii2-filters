@@ -1,132 +1,62 @@
 <?php
 
-namespace Brezgalov\Filters;
+namespace Brezgalov\Filters\Actions;
 
-use yii\base\Model;
-use yii\db\ActiveRecord;
+use Brezgalov\Filters\Filter;
 
-class Filter
+/**
+ * Базовый экшон. Поддерживает фильтры
+ * @package potok\modules\v1\controllers\actions\base
+ */
+class IndexAction extends \yii\rest\IndexAction
 {
     /**
-     * @var string
+     * @var bool if FALSE - pagination is disabled while page or per-page not found in request
      */
-    protected $modelName;
+    public $pagAlwaysActive = false;
 
     /**
-     * Массив пользовательских фильтров
-     * @var array
+     * @var int default pagination page size
      */
-    protected $handlers = [];
+    public $defaultPageSize = 100;
 
     /**
-     * Список полей по которым можно фильтровать
-     * @var array
+     * filter
+     * @var null|Filter
      */
-    protected $allowedFields = [];
+    protected $filter = null;
 
     /**
-     * Массив полей по которым запрещена фильтрация
-     * @var array
+     * IndexAction constructor.
+     * @param $id
+     * @param \yii\base\Controller $controller
+     * @param array $config
      */
-    protected $forbiddenFields = [
-        'fields' => true,
-        'conditions' => true,
-        'expand' => true,
-        'per-page' => true,
-        'page' => true,
-    ];
-
-    /**
-     * Disable fields filter white list check
-     * @var bool
-     */
-    public $disableWhiteListFields = false;
-
-    /**
-     * Добавляем хэндлер в список
-     * Пример предопределения фильтров
-     * $filter->addHandler('1', [$this, 'func1']->addHandler('2', [$this, 'func2']);
-     *
-     * @param string $key
-     * @param callable $handler
-     * @return $this
-     */
-    public function addHandler($key, IFilterHandler $filter)
+    public function __construct($id, \yii\base\Controller $controller, array $config = [])
     {
-        $this->handlers[$key] = $filter;
-        return $this;
+        $this->filter = new Filter();
+        parent::__construct($id, $controller, $config);
     }
 
     /**
-     * @param string $model
+     * Подключаем фильтры перед отдачей
+     * @return \yii\data\ActiveDataProvider
      */
-    public function setModelName($modelName)
+    protected function prepareDataProvider()
     {
-        $this->modelName = $modelName;
-    }
-
-    /**
-     * Добавляем список полей запрещенных к фильтрации
-     * @param array $fields
-     * @return $this
-     */
-    public function addForbiddenFields(array $fields)
-    {
-        foreach ($fields as $field) {
-            $this->forbiddenFields[$field] = true;
-        }
-        return $this;
-    }
-
-    /**
-     * Добавление полей в белый список для фильтра по полям
-     * @param array $fields
-     * @return $this
-     */
-    public function addAllowedFields(array $fields)
-    {
-        foreach ($fields as $field) {
-            $this->allowedFields[$field] = true;
-        }
-        return $this;
-    }
-
-    /**
-     * Проверяет является ли элемент фильтра инвалидным
-     * @param $field
-     * @return bool
-     */
-    public function isInvalidField($field)
-    {
-        $forbidden = array_key_exists($field, $this->forbiddenFields);
-        $allowed = array_key_exists($field, $this->allowedFields);
-        return $forbidden || !$allowed;
-    }
-
-    /**
-     * Применяем хендлер фильтра к запросу
-     * @param \yii\db\QueryInterface $query
-     * @param array $params
-     */
-    public function putFilter(\yii\db\QueryInterface $query, array $params)
-    {
-        if (array_key_exists('filter', $params)) {
-            if (!is_string($params['filter'])) {
-                return;
-            }
-            $filters = explode(',', $params['filter']);
-            foreach ($filters as $filter) {
-                $this->handlers[$filter]->apply($query);
-            }
+        $queryParams = \Yii::$app->request->getQueryParams();
+        $provider = parent::prepareDataProvider();
+        //manage pagination
+        if (!$this->pagAlwaysActive && !array_key_exists('per-page', $queryParams) && !array_key_exists('page', $queryParams)) {
+            $provider->pagination = false;
         } else {
-            foreach ($params as $key => $val) {
-                if ($this->isInvalidField($key)){
-                    continue;
-                }
-                $key = (!empty($this->modelName))? $this->modelName . '.' . $key : $key;
-                $condition = (@$params['conditions'][$key])?: '=';
-                $query->andWhere([$condition, $key, $val]);
-            }
+            $provider->pagination->defaultPageSize = $this->defaultPageSize;
         }
+        //apply filters
+        $this->filter->putFilter(
+            $provider->query,
+            $queryParams
+        );
+        return $provider;
     }
 }
