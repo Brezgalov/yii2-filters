@@ -2,7 +2,7 @@
 
 namespace Brezgalov\Filters\Actions;
 
-use brezgalov\filters\Filter;
+use Brezgalov\Filters\Filter;
 
 /**
  * Базовый экшон. Поддерживает фильтры
