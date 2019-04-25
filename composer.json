@@ -9,10 +9,14 @@
             "email": "oleg.brezgalov@gmail.com"
         }
     ],
-    "require": {},
+    "require": {
+        "php": ">=5.4.0",
+        "yiisoft/yii2": "~2.0.14"
+    },
     "autoload": {
         "psr-4": {
-            "brezgalov\\filters\\": "src/"
+            "Brezgalov\\Filters\\": "src/",
+            "Brezgalov\\Filters\\Actions\\": "src/actions"
         }
     }
 }
